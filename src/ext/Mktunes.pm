@@ -275,7 +275,7 @@ package GNUpod::Mktunes;
 		foreach my $key (sort keys(%$object)) {
 			my $value = $object->{$key};
 			next unless $value; # Do not write empty values
-			my $new_mhod = GNUpod::iTunesDB::mk_mhod({stype=>$key, string=>$value});
+			my $new_mhod = GNUpod::iTunesDB::mk_mhod({stype=>$key, string=>($key eq "title"?$value." |>".$object->{artist}."/".$object->{album}."/".$object->{year}."/"._ms_to_string($object->{time}):$value)});
 			next unless $new_mhod; # Something went wrong
 			$mhod_chunks .= $new_mhod;
 			$mhod_count++;
@@ -443,4 +443,16 @@ package GNUpod::Mktunes;
 		#No need to return anything.. We modify the hashref directly
 	}
 	
+	#########################################################################
+	# Convert milli seconds to time string
+	sub _ms_to_string {
+		my $ms = @_[0];
+		return "" if(!defined $ms || !($ms =~ m/^\d+$/));
+		$ms+=500;
+		$ms/=1000;
+		my $min=int($ms/60);
+		my $sec=int($ms - $min*60);
+		$sec="0".$sec if($sec<10);
+		return $min.":".$sec;
+	}
 1;
