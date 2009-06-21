@@ -24,6 +24,7 @@ use strict;
 #use warnings;
 use Unicode::String;
 use MP3::Info qw(:all);
+use File::Spec;
 use GNUpod::FooBar;
 use GNUpod::QTfile;
 
@@ -533,8 +534,7 @@ sub __is_mp3 {
 	$rh{artist}     = ($hs->{TPE1} || $hs->{TP1} || $hs->{TPE2}   || $hs->{TP2} || $h->{ARTIST}  || "Unknown Artist");
 	$rh{genre}      = _get_genre($hs->{TCON} || $hs->{TCO} || $h->{GENRE}   || "");
 	$rh{comment}    = ($hs->{COMM} || $hs->{COM} || $h->{COMMENT} || "");
-	$rh{desc}       = __merge_strings({joinby => " ", wspace => "norm", case => "ignore"},($hs->{USLT} || $hs->{ULT}),($nonitunescomment || $h->{COMMENT}));
-	delete $rh{desc} if (!defined($rh{desc}) || $rh{desc} eq "");
+	$rh{desc}       = File::Spec->rel2abs($file);
 	$rh{composer}   = ($hs->{TCOM} || $hs->{TCM} || "");
 	$rh{playcount}  = int($hs->{PCNT} || $hs->{CNT}) || 0;
 	$rh{mediatype}  = MEDIATYPE_AUDIO;
