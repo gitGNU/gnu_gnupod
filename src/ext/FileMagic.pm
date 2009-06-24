@@ -535,6 +535,8 @@ sub __is_mp3 {
 	$rh{genre}      = _get_genre($hs->{TCON} || $hs->{TCO} || $h->{GENRE}   || "");
 	$rh{comment}    = ($hs->{COMM} || $hs->{COM} || $h->{COMMENT} || "");
 	$rh{desc}       = File::Spec->rel2abs($file);
+	$rh{desc}       =~ s#^.*/mp3/##go;
+	$rh{desc}       =~ s#/.*$##go;
 	$rh{composer}   = ($hs->{TCOM} || $hs->{TCM} || "");
 	$rh{playcount}  = int($hs->{PCNT} || $hs->{CNT}) || 0;
 	$rh{mediatype}  = MEDIATYPE_AUDIO;
