@@ -115,14 +115,14 @@ dates to something human readable.
 			my ($song) = @_;
 			return undef unless defined($song->{soundcheck});
 			return undef if ($song->{soundcheck} eq "");
-			return sprintf("%+.2f",log($song->{soundcheck}/1000)/log(10)/-0.1) ." dB";
+			return sprintf("%+.2f",($song->{soundcheck}==0?0:log($song->{soundcheck}/1000)/log(10)/-0.1)) ." dB";
 		},
 	'volume' => sub {
 			my ($song) = @_;
 			return undef unless defined($song->{volume});
 			return "" if ($song->{volume} == 0);
 			return "-100% (silence)" if ($song->{volume} == -100);
-			return sprintf("%+d%% (%+.2fdB)",$song->{volume},20*log($song->{volume}/100.0 + 1.0)/log(10));
+			return sprintf("%+d%% (%+.2fdB)",$song->{volume},($song->{volume}==0?0:20*log($song->{volume}/100.0 + 1.0)/log(10)));
 		},
 );
 
@@ -270,8 +270,15 @@ DOCUMENT ME!
 		'format' => 'numeric',
 		'content' => 'int',
 		'help' => 'iPod database id',
-		'header' => 'ID',
-		'width' => 4,
+		'header' => 'DBID_1',
+		'width' => 8,
+		},
+	'dbid_2' => {
+		'format' => 'numeric',
+		'content' => 'int',
+		'help' => 'iPod database id2',
+		'header' => 'DBID_2',
+		'width' => 8,
 		},
 	'bpm' => {
 		'format' => 'numeric',
@@ -410,8 +417,8 @@ DOCUMENT ME!
 		'format' => 'numeric',
 		'content' => 'int',
 		'help' => 'The size in bytes from first Synch Frame until the 8th before the last frame.',
-		'header' => '',
-		'width' => 1,
+		'header' => 'GAPLESS',
+		'width' => 8,
 		},
 	'has_gapless' => {
 		'format' => 'numeric',
@@ -814,7 +821,9 @@ sub process_options {
 	for my $viewopt (@{$options{view}}) {
 		for my $viewkey (split(/\s*,\s*/,   $viewopt)) {
 			my $attr;
-			if ($viewkey eq "default") {
+			if ($viewkey eq "all") {
+				push @viewlist, sort(keys(%FILEATTRDEF));
+			} elsif ($viewkey eq "default") {
 				for my $dk (split(/\s*,\s*/, $defaultviewlist)) {
 					push @viewlist, $dk;
 				}
