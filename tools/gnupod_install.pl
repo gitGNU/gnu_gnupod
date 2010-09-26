@@ -34,13 +34,6 @@ if($opts{MODE} eq "INSTALL") {
  install_info("build/info/gnupod.info", $DST.$opts{infodir});
  print "done!\n";
 }
-elsif($opts{MODE} eq "BUILD") {
- print "Building GNUpod $VINSTALL...\n";
- install_scripts("src/*.pl", "build/bin");
- install_scripts("src/ext/*.pm", "build/bin/GNUpod");
- extract_man("build/bin/*.pl", "build/man");
- install_scripts("doc/gnupod.info", "build/info");
-}
 elsif($opts{MODE} eq "REMOVE") {
  print "Removing GNUpod $VINSTALL...\n";
  remove_scripts("build/bin/*.pl", $opts{bindir});
@@ -93,34 +86,34 @@ else {
 
 ###################################
 # extract man pages from perldoc
-sub extract_man {
- my($glob, $dest) = @_;
- foreach(glob($glob)) 
- {
-  my $file = fof($_);
-  print " > $_ --> $dest/$file.1\n";
-   # here and now generate man pages from the ncp'ed scripts
-   # and put them into our own man dir so they get copied later
-   system($opts{podmanbin}, "--center", "User commands" , "$_", "$dest/$file.1");
-   #or die("Failed to create man pages from script $file."); 
- }
+#sub extract_man {
+# my($glob, $dest) = @_;
+# foreach(glob($glob)) 
+# {
+#  my $file = fof($_);
+#  print " > $_ --> $dest/$file.1\n";
+#   # here and now generate man pages from the ncp'ed scripts
+#   # and put them into our own man dir so they get copied later
+#   system($opts{podmanbin}, "--center", "User commands" , "$_", "$dest/$file.1");
+#   #or die("Failed to create man pages from script $file."); 
+# }
+#
+#}
 
-}
-
-######################################
-# Install manual pages
-sub install_man {
- my($glob, $dest) = @_;
- my $file = undef;
- print "Installing manual pages\n";
- foreach(glob($glob)) {
-  $file = fof($_);
-  my $destfile = "$dest/$file";
-  print " > $_ --> $destfile\n";
-  ncp($_, $destfile);
-  chmod 0644, $destfile;
- }
-}
+#######################################
+## Install manual pages
+#sub install_man {
+# my($glob, $dest) = @_;
+# my $file = undef;
+# print "Installing manual pages\n";
+# foreach(glob($glob)) {
+#  $file = fof($_);
+#  my $destfile = "$dest/$file";
+#  print " > $_ --> $destfile\n";
+#  ncp($_, $destfile);
+#  chmod 0644, $destfile;
+# }
+#}
 
 ##########################
 #Uninstall docs
