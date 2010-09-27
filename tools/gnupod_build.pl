@@ -118,14 +118,19 @@ sub ncp {
 	my($source, $dest) = @_;
 	open(SOURCE, "$source") or die "Could not read $source: $!\n";
 	open(TARGET, ">$dest") or die "Could not write $dest: $!\n";
+	my $firstline=1;
 	while(<SOURCE>) {
-		$_ =~ s/###__PERLBIN__###/#!$opts{perlbin}/;
+		if ($firstline == 1) {
+			$_ =~ s/^#!\/usr\/bin\/perl/#!$opts{perlbin}/;
+			$firstline = 0;
+		}
 		$_ =~ s/###__VERSION__###/$VINSTALL/;
 		if (/^###___PODINSERT (.*?)___###/) {
 			open(INSERT, "$1") or die "Could not read podinsert $1: $!\n";
 			while (<INSERT>) {
 				print TARGET $_;
 			}
+			close INSERT;
 		} else {
 			print TARGET $_;
 		}

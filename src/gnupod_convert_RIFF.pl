@@ -1,4 +1,4 @@
-###__PERLBIN__###
+#!/usr/bin/perl
 #  Copyright (C) 2006-2007 Adrian Ulrich <pab at blinkenlights.ch>
 #  Part of the gnupod-tools collection
 #
