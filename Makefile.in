@@ -13,20 +13,23 @@ pkgver       = @PACKAGE_VERSION@
 pkgfname     = gnupod-@PACKAGE_VERSION@
 pkgdir       = gnupod-@PACKAGE_VERSION@-noarch-1au
 usertoolssrc = $(wildcard src/*.pl)
-modulessrc   = $(wildcard src/ext/*.pm)
+modulessrc   = $(wildcard src/GNUpod/*.pm)
 usertools    = $(usertoolssrc:src/%.pl=%.pl)
-modules      = $(modulessrc:src/ext/%.pm=GNUpod/%.pm)
-buildtargets = $(addprefix build/bin/,$(usertools) $(modules))
+usertoolsman = $(usertools:%.pl=%.pl.1.gz)
+modules      = $(modulessrc:src/GNUpod/%.pm=GNUpod/%.pm)
+buildtargets = $(addprefix build/bin/,$(usertools) $(modules)) $(addprefix build/man/,$(usertoolsman))
 
 # setup build directories and build all tools and libs
 
 prepare : builddirs $(buildtargets) build/info/gnupod.info
 
-build/bin/%.pl build/man/%.pl.1.gz : src/%.pl
+build/bin/%.pl build/man/%.pl.1 : src/%.pl
 	$(perlbinary) $(top_srcdir)/tools/gnupod_build.pl --perlbin "$(perlbinary)" --perldoc "$(podmanbin)" --man $?
-	gzip -f $(top_srcdir)/build/man/*.1
 
-build/bin/GNUpod/%.pm : src/ext/%.pm
+build/man/%.pl.1.gz : build/man/%.pl.1
+	gzip -c $? > $?.gz
+
+build/bin/GNUpod/%.pm : src/GNUpod/%.pm
 	$(perlbinary) $(top_srcdir)/tools/gnupod_build.pl --perlbin "$(perlbinary)" --target "bin/GNUpod" $?
 
 build/info/%.info: doc/%.info
