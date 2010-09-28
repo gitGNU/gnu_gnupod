@@ -123,8 +123,8 @@ sub wtf_is {
 	elsif(my $h = __is_pcm($file,$flags)) {
 		return ($h, {ftyp=>"PCM", format=>"wav"});
 	}
-	elsif(my $h = __is_mp3($file,$flags)) {
-		return ($h, {ftyp=>"MP3", format=>"mp3"});
+	elsif(my $m = __is_mp3($file,$flags)) {
+		return ($m, {ftyp=>"MP3", format=>"mp3"});
 	}
 	#Still no luck..
 	return (undef, undef, undef);

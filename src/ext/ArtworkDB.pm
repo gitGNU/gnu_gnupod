@@ -442,9 +442,9 @@ package GNUpod::Ugly64;
 	
 	sub _voodoo {
 		my($self,$hex) = @_;
-		my $hex = (pack("H16",$hex));
-		my $a = unpack("V",substr($hex,0,4));
-		my $b = unpack("V",substr($hex,4,4));
+		my $hexl = (pack("H16",$hex));
+		my $a = unpack("V",substr($hexl,0,4));
+		my $b = unpack("V",substr($hexl,4,4));
 		return([$a,$b]);
 	}
 	

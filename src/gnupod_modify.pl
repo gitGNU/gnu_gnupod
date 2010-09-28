@@ -34,7 +34,7 @@ my $programName = "gnupod_modify.pl";
 
 my $fullVersionString = "$programName Version ###__VERSION__### (C) Heinrich Langos";
 
-use vars qw(%opts @keeplist);
+use vars qw(%opts);
 
 $opts{mount} = $ENV{IPOD_MOUNTPOINT};
 
