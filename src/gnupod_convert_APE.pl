@@ -22,6 +22,7 @@
 # This product is not supported/written/published by Apple!
 
 use strict;
+use warnings;
 use GNUpod::FooBar;
 use GNUpod::FileMagic;
 
@@ -41,11 +42,11 @@ elsif($gimme eq "GET_META") {
 }
 elsif($gimme eq "GET_PCM") {
 	my $tmpout = GNUpod::FooBar::get_u_path("/tmp/gnupod_pcm", "wav");
-	my $status = system("flac", "-d", "-s", "$file", "-o", $tmpout);
-	my $status = system("mac", "$file", "$tmpout", "-d");
-	if($status) {
-		warn "mac exited with $status, $!\n";
-		exit(1);
+	if (my $error=system("flac", "-d", "-s", "$file", "-o", $tmpout)) {
+		die "starting flac failed with $error\n";
+	}
+	if (my $error=system("mac", "$file", "$tmpout", "-d")) {
+		die "starting mac failed with $error\n";
 	}
 	print "PATH:$tmpout\n";
 
@@ -54,15 +55,15 @@ elsif($gimme eq "GET_MP3") {
 	#Open a secure flac pipe and open anotherone for lame
 	#On errors, we'll get a BrokenPipe to stout
 	my $tmpout = GNUpod::FooBar::get_u_path("/tmp/gnupod_mp3", "mp3");
-	open(FLACOUT, "-|") or exec("mac", "$file", "-", "-d") or die "Could not exec flac: $!\n";
-	open(LAMEIN , "|-") or exec("lame", "-V", $quality, "--silent", "-", $tmpout) or die "Could not exec lame: $!\n";
-	binmode(FLACOUT);
-	binmode(LAMEIN);
-	while(<FLACOUT>) {
-		print LAMEIN $_;
+	open(my $FLACOUT, "-|") or exec("mac", "$file", "-", "-d") or die "Could not exec flac: $!\n";
+	open(my $LAMEIN , "|-") or exec("lame", "-V", $quality, "--silent", "-", $tmpout) or die "Could not exec lame: $!\n";
+	binmode($FLACOUT);
+	binmode($LAMEIN);
+	while(<$FLACOUT>) {
+		print {$LAMEIN} $_;
 	}
-	close(FLACOUT);
-	close(LAMEIN);
+	close($FLACOUT);
+	close($LAMEIN);
 	print "PATH:$tmpout\n";
 }
 elsif($gimme eq "GET_AAC" or $gimme eq "GET_AACBM") {
@@ -70,16 +71,16 @@ elsif($gimme eq "GET_AAC" or $gimme eq "GET_AACBM") {
 	my $tmpout = GNUpod::FooBar::get_u_path("/tmp/gnupod_faac", "m4a");
 	   $tmpout = GNUpod::FooBar::get_u_path("/tmp/gnupod_faac", "m4b") if $gimme eq "GET_AACBM";
 	$quality = 140 - ($quality*10);
-	open(FLACOUT, "-|") or exec("mac", "$file", "-", "-d") or die "Could not exec flac: $!\n";
-	open(FAACIN , "|-") or exec("faac", "-w", "-q", $quality, "-o", $tmpout, "-") or die "Could not exec faac: $!\n";
-	binmode(FLACOUT);
-	binmode(FAACIN);
-	while(<FLACOUT>) { #Feed faac
-		print FAACIN $_;
+	open(my $FLACOUT, "-|") or exec("mac", "$file", "-", "-d") or die "Could not exec flac: $!\n";
+	open(my $FAACIN , "|-") or exec("faac", "-w", "-q", $quality, "-o", $tmpout, "-") or die "Could not exec faac: $!\n";
+	binmode($FLACOUT);
+	binmode($FAACIN);
+	while(<$FLACOUT>) { #Feed faac
+		print {$FAACIN} $_;
 	}
 
-	close(FLACOUT);
-	close(FAACIN);
+	close($FLACOUT);
+	close($FAACIN);
 	print "PATH:$tmpout\n";
 }
 else {
