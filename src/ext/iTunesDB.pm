@@ -1213,7 +1213,12 @@ sub get_mhod {
 		$r{string_size} = get_int($seek+28,4,$fd);
 		my $tmpstring   = get_string($seek+($r{total_size}-$r{string_size}), $r{string_size}, $fd);
 		   $tmpstring   = Unicode::String::byteswap2($tmpstring);
+		if($r{type} == 3) {
+		   # Album mhod, strip added year
+		   $r{string}   = shift(@{[split(/ \|>/,Unicode::String::utf16($tmpstring)->utf8)]});
+		} else {
 		   $r{string}   = Unicode::String::utf16($tmpstring)->utf8;
+		}
 	}
 	return \%r;
 }

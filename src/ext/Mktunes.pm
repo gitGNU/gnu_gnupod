@@ -279,7 +279,7 @@ package GNUpod::Mktunes;
 			my $value = $object->{$key};
 			next unless $value; # Do not write empty values
 			next if (scalar keys %$keep && !$keep->{$key}); # Only keep specific mhods
-			my $new_mhod = GNUpod::iTunesDB::mk_mhod({stype=>$key, string=>$value});
+			my $new_mhod = GNUpod::iTunesDB::mk_mhod({stype=>$key, string=>($key eq "album"?$value." |>".$object->{year}:$value)});
 			next unless $new_mhod; # Something went wrong
 			$mhod_chunks .= $new_mhod;
 			$mhod_count++;
