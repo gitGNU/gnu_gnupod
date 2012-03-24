@@ -22,6 +22,7 @@
 # This product is not supported/written/published by Apple!
 
 use strict;
+use warnings;
 use GNUpod::XMLhelper;
 use GNUpod::FooBar;
 use Getopt::Long;
@@ -51,6 +52,7 @@ go();
 sub go {
 	usage($con->{status}."\n") if $con->{status};
 	
+	%TRACKER=( GLOBFILES => 0, ITFILES => 0, TIME => 0, SIZE => 0, ERR => 0, FIXED => 0 );
 	print "Pass 1: Checking Files in the GNUtunesDB.xml...\n";
 	GNUpod::XMLhelper::doxml($con->{xml}) or usage("Failed to parse $con->{xml}, did you run gnupod_INIT.pl?\n");
 
@@ -58,8 +60,8 @@ sub go {
 	checkGNUtunes($con);
 
 	print   "..finished\n\n";
-	print   "  Total Playtime : ".int($TRACKER{TIME}/1000/60/60)." h\n";
-	printf ("  Space used     : %.2f GB\n",( $TRACKER{SIZE}/1024/1024/1024 ) );
+	print   "  Total playtime : ".int($TRACKER{TIME}/1000/60/60)." h\n";
+	printf ("  Total filesize : %.2f GB",( $TRACKER{SIZE}/1024/1024/1024 )); print " ($TRACKER{SIZE} Bytes) \n";
 	print   "  iPod files     : $TRACKER{GLOBFILES}\n";
 	print   "  GNUpod files   : $TRACKER{ITFILES}\n";
 
@@ -229,6 +231,7 @@ gnupod_check.pl checks for 'lost' files
        --version           output version information and exit
    -m, --mount=directory   iPod mountpoint, default is \$IPOD_MOUNTPOINT
        --fixit             Try to fixup some errors (may delete 'lost' files)
+
 Report bugs to <bug-gnupod\@nongnu.org>
 EOF
 }
@@ -246,4 +249,48 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 EOF
 }
 
+=head1 NAME
 
+gnupod_check.pl - Check for lost/zombie files on the iPod
+
+=head1 SYNOPSIS
+
+B<gnupod_check.pl> [OPTION]...
+
+=head1 DESCRIPTION
+
+Use this tool if your OS crashed while uploading songs to the iPod or if you have too much time ;)
+
+=head1 OPTIONS
+
+=over 4
+
+=item -h, --help
+
+Display usage help and exit
+
+=item     --version
+
+Output version information and exit
+
+=item -m, --mount=directory
+
+iPod mountpoint, default is C<$IPOD_MOUNTPOINT>
+
+=item     --fixit
+
+Try to fixup some errors (may delete 'lost' files)
+
+=back
+
+###___PODINSERT man/general-tools.pod___###
+
+=head1 AUTHORS
+
+Adrian Ulrich <pab at blinkenlights dot ch> - Main author of GNUpod
+
+=head1 COPYRIGHT
+
+Copyright (C) Adrian Ulrich
+
+###___PODINSERT man/footer.pod___###

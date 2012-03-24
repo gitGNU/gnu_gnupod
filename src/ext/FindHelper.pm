@@ -115,14 +115,14 @@ dates to something human readable.
 			my ($song) = @_;
 			return undef unless defined($song->{soundcheck});
 			return undef if ($song->{soundcheck} eq "");
-			return sprintf("%+.2f",log($song->{soundcheck}/1000)/log(10)/-0.1) ." dB";
+			return sprintf("%+.2f",($song->{soundcheck}==0?0:log($song->{soundcheck}/1000)/log(10)/-0.1)) ." dB";
 		},
 	'volume' => sub {
 			my ($song) = @_;
 			return undef unless defined($song->{volume});
 			return "" if ($song->{volume} == 0);
 			return "-100% (silence)" if ($song->{volume} == -100);
-			return sprintf("%+d%% (%+.2fdB)",$song->{volume},20*log($song->{volume}/100.0 + 1.0)/log(10));
+			return sprintf("%+d%% (%+.2fdB)",$song->{volume},($song->{volume}==0?0:20*log($song->{volume}/100.0 + 1.0)/log(10)));
 		},
 );
 
@@ -270,8 +270,15 @@ DOCUMENT ME!
 		'format' => 'numeric',
 		'content' => 'int',
 		'help' => 'iPod database id',
-		'header' => 'ID',
-		'width' => 4,
+		'header' => 'DBID_1',
+		'width' => 8,
+		},
+	'dbid_2' => {
+		'format' => 'numeric',
+		'content' => 'int',
+		'help' => 'iPod database id2',
+		'header' => 'DBID_2',
+		'width' => 8,
 		},
 	'bpm' => {
 		'format' => 'numeric',
@@ -410,8 +417,8 @@ DOCUMENT ME!
 		'format' => 'numeric',
 		'content' => 'int',
 		'help' => 'The size in bytes from first Synch Frame until the 8th before the last frame.',
-		'header' => '',
-		'width' => 1,
+		'header' => 'GAPLESS',
+		'width' => 8,
 		},
 	'has_gapless' => {
 		'format' => 'numeric',
@@ -478,6 +485,7 @@ DOCUMENT ME!
 		'help' => 'iPod path',
 		'header' => 'IPODPATH',
 		'width' => 40,
+		'readonly' => 1,
 		},
 
 	'unixpath' => {
@@ -486,6 +494,8 @@ DOCUMENT ME!
 		'help' => 'Unix path',
 		'header' => 'UNIXPATH',
 		'width' => 40,
+		'readonly' => 1,
+		'always-cooked' => 1,
 		},
 
 	'podcastguid' => {
@@ -542,6 +552,7 @@ DOCUMENT ME!
 		'help' => 'Item ID within GNUpod',
 		'header' => 'ID',
 		'width' => 6,
+		'readonly' => 1,
 		},
 
 );
@@ -561,6 +572,7 @@ Example:
 
 
 our @findoptions = (
+"list-attributes",
 "filter|f=s@",
 "view|v=s@",
 "sort|s=s@",
@@ -590,10 +602,11 @@ String to include in your help text if you use the FindHelper module.
 
 =cut
 
-our $findhelp = '   -f, --filter FILTERDEF  only show songss that match FILTERDEF
+our $findhelp = '       --list-attributes   display all attributes for filter/view/sort and exit
+   -f, --filter FILTERDEF  only show songs that match FILTERDEF
    -s, --sort SORTDEF      order output according to SORTDEF
    -v, --view VIEWDEF      only show song attributes listed in VIEWDEF
-   -o, --or, --once        make any filter match (think OR vs. AND)
+   -o, --or, --once        make any filter rule match (think OR vs. AND)
    -l, --limit=N           only output N first tracks (-N: all but N first)
        --noheader          don\'t print headers for result list
        --rawprint          output of raw values instead of human readable
@@ -814,7 +827,9 @@ sub process_options {
 	for my $viewopt (@{$options{view}}) {
 		for my $viewkey (split(/\s*,\s*/,   $viewopt)) {
 			my $attr;
-			if ($viewkey eq "default") {
+			if ($viewkey eq "all") {
+				push @viewlist, sort(keys(%FILEATTRDEF));
+			} elsif ($viewkey eq "default") {
 				for my $dk (split(/\s*,\s*/, $defaultviewlist)) {
 					push @viewlist, $dk;
 				}
@@ -1062,7 +1077,7 @@ value (if any) wil be returned.
 
 sub computeresults {
 	my ($song, $raw, $fieldname) = @_;
-	if ((!$raw) && defined ($FILEATTRDEF_COMPUTE{$fieldname})) {
+	if ((!$raw || $FILEATTRDEF{$fieldname}{'always-cooked'} ) && defined ($FILEATTRDEF_COMPUTE{$fieldname})) {
 		#print "Found code for $fieldname \n";
 		my $coderef = $FILEATTRDEF_COMPUTE{$fieldname};
 		return &$coderef($song);

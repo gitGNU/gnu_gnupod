@@ -22,6 +22,7 @@
 # This product is not supported/written/published by Apple!
 
 use strict;
+use warnings;
 use GNUpod::iTunesDB;
 use GNUpod::XMLhelper;
 use GNUpod::FooBar;
@@ -35,13 +36,17 @@ use constant MODE_NEWPL => 3;
 use vars qw(%opts);
 $| = 1;
 
+# variables for parsing the current GNUtunesDB.xml and merging it
+# if low_ram_attr is set.
+my $xml_files_parsed=0;
+my $gtdb = {};
 
 print "tunes2pod.pl Version ###__VERSION__### (C) Adrian Ulrich\n";
 
 $opts{mount} = $ENV{IPOD_MOUNTPOINT};
 
 GetOptions(\%opts, "version", "force", "help|h", "mount|m=s");
-GNUpod::FooBar::GetConfig(\%opts, {mount=>'s', force=>'b', model=>'s'}, "tunes2pod");
+GNUpod::FooBar::GetConfig(\%opts, {mount=>'s', force=>'b', model=>'s', low_ram_attr=>'s'}, "tunes2pod");
 
 
 usage() if $opts{help};
@@ -65,6 +70,13 @@ sub convert {
 		exit(1);
 	}
 	
+	if($opts{'low_ram_attr'}) {
+		print "> Parsing GNUtunesDB.xml document to prepare merge of limited attributes...\n";
+		GNUpod::XMLhelper::doxml($con->{xml}) or usage("Could not read $con->{xml}, did you run gnupod_INIT.pl ?");
+		GNUpod::XMLhelper::resetxml();
+		print "\r> ".$xml_files_parsed." files parsed, converting iTunesDB...\n";
+	}
+
 	open(ITUNES, $con->{itunesdb}) or usage("Could not open $con->{itunesdb}");
 	
 	while(<ITUNES>) {}; sysseek(ITUNES,0,0); # the iPod is a sloooow mass-storage device, slurp it into the fs-cache
@@ -155,8 +167,6 @@ sub SetPodcastName {
 # Append item to podcast playlist
 sub AppendPodcastItem {
 	my($self,$index,$item) = @_;
-	my $index = $self->{pc_playlist}->{index};
-	return if $index == 0;
 	push(@{$self->{pc_playlist}->{lists}->{$index}->{content}},$item);
 }
 
@@ -197,7 +207,7 @@ sub MhitStart {
 sub MhitEnd {
 	my($self, %args) = @_;
 	if($self->{mode} == MODE_SONGS) {
-		GNUpod::XMLhelper::mkfile({file=>$self->{ctx}});                  # Add <file element to xml
+		GNUpod::XMLhelper::mkfile({file=>MergeGtdbCtx($self->{ctx})});    # Add <file element to xml
 		$self->{ctx} = ();                                                # And drop this buffer
 		my $i = ++$self->{count_songs_done};
 		if($i % 32 == 0) {
@@ -231,7 +241,7 @@ sub MhodItem {
 	}
 	elsif($self->{mode} == MODE_OLDPL) {
 		# Legacy playlist
-		if($args{ref}->{type_string} eq 'title') {
+		if(defined($args{ref}->{type_string}) && ($args{ref}->{type_string} eq 'title')) {
 			# -> Set title of playlist following
 			$self->SetPlaylistName($args{ref}->{string});
 		}
@@ -247,7 +257,7 @@ sub MhodItem {
 	}
 	elsif($self->{mode} == MODE_NEWPL) {
 		# -> Newstyle playlist
-		if($args{ref}->{type_string} eq 'title' && $self->{playlist}->{podcast}) {
+		if(defined($args{ref}->{type_string}) && ($args{ref}->{type_string} eq 'title' && $self->{playlist}->{podcast})) {
 			# Title of playlist: create it
 			$self->SetPodcastName($args{ref}->{string});
 		}
@@ -344,11 +354,35 @@ sub MhypEnd {
 	$self->ResetPlaylists; # Resets podcast and normal playlist data
 }
 
+#########################################################################
+# Merge GNUtunesDB with ctx
+sub MergeGtdbCtx {
+	my($Ctx) = @_;
+	return $Ctx unless $Ctx->{path} && $gtdb->{$Ctx->{path}};
+	return {%{$gtdb->{$Ctx->{path}}}, %$Ctx};
+}
 
+#########################################################################
+# Called by doxml if it finds a new <file tag
+sub newfile {
+	my($item) = @_;
+	my $file  = $item->{file};
+	my $path  = $file->{path};
 
+	$xml_files_parsed++;
+	print "\r> ".$xml_files_parsed." files parsed" if $xml_files_parsed % 96 == 0;
 
+	return unless $path;
+	$gtdb->{$path} = {};
+	foreach(keys(%$file)){
+		$gtdb->{$path}->{$_}=$file->{$_};
+	}
+}
 
-
+#########################################################################
+# Called by doxml if it a new <playlist.. has been found
+	sub newpl {
+}
 
 sub usage {
 	my($rtxt) = @_;
@@ -376,6 +410,52 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 EOF
 }
 
+=head1 NAME
 
+tunes2pod.pl - Convert an iTunesDB into XML (aka GNUtunesDB.xml)
 
+=head1 SYNOPSIS
 
+B<tunes2pod.pl> [OPTION]...
+
+=head1 DESCRIPTION
+
+Convert an iTunesDB into XML (aka GNUtunesDB.xml). If you manage your iPod with GNUpod only, you will
+never need to call this. If you update your iTunesDB with other software as well, you will need this to
+update your GNUtunesDB.xml.
+
+See COEXISTENCE below for details.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -h, --help
+
+Display usage help and exit
+
+=item     --version
+
+Output version information and exit
+
+=item -m, --mount=directory
+
+iPod mountpoint, default is C<$IPOD_MOUNTPOINT>
+
+=item     --force
+
+Disable 'sync' checking. tunes2pod.pl may do stupid things :)
+
+=back
+
+###___PODINSERT man/general-tools.pod___###
+
+=head1 AUTHORS
+
+Adrian Ulrich <pab at blinkenlights dot ch> - Main author of GNUpod
+
+=head1 COPYRIGHT
+
+Copyright (C) Adrian Ulrich
+
+###___PODINSERT man/footer.pod___###

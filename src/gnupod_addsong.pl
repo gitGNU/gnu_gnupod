@@ -22,6 +22,7 @@
 # This product is not supported/written/published by Apple!
 
 use strict;
+use warnings;
 use GNUpod::XMLhelper;
 use GNUpod::FooBar;
 use GNUpod::FileMagic;
@@ -52,7 +53,7 @@ GetOptions(\%opts, "version", "help|h", "mount|m=s", "decode|x=s", "restore|r", 
 
 GNUpod::FooBar::GetConfig(\%opts, {'decode'=>'s', mount=>'s', duplicate=>'b', model=>'s', 'replaygain-album'=>'b',
                                    'disable-v1'=>'b', 'disable-v2'=>'b', 'disable-ape-tag'=>'b', 'set-songnum'=>'b',
-                                   'min-vol-adj'=>'i', 'max-vol-adj'=>'i', 'automktunes'=>'b', 
+                                   'min-vol-adj'=>'i', 'max-vol-adj'=>'i', 'automktunes'=>'b', 'bgcolor'=>'s',
                                    'podcast-files-limit'=>'i', 'podcast-cache-dir'=>'s', 'podcast-artwork'=>'b' },
                                    "gnupod_addsong");
 
@@ -123,8 +124,8 @@ sub startup {
 	}
 	
 	# Check volume adjustment options for sanity
-	my $min_vol_adj = int($opts{'min-vol-adj'});
-	my $max_vol_adj = int($opts{'max-vol-adj'});
+	my $min_vol_adj = defined($opts{'min-vol-adj'})?int($opts{'min-vol-adj'}):0;
+	my $max_vol_adj = defined($opts{'max-vol-adj'})?int($opts{'max-vol-adj'}):0;
 	
 	usage("Invalid settings: --min-vol-adj=$min_vol_adj > --max-vol-adj=$max_vol_adj\n") if ($min_vol_adj > $max_vol_adj);
 	usage("Invalid settings: --min-vol-adj=$min_vol_adj < -100\n")                       if ($min_vol_adj < -100);
@@ -211,8 +212,8 @@ sub startup {
 		#Thats fine because almost everything inside an mhit can handle this.
 		#But bpm and srate are limited to 0xffff
 		# -> We fix this silently to avoid ugly warnings while running mktunes.pl
-		$fh->{bpm}   = 0xFFFF if $fh->{bpm}   > 0xFFFF;
-		$fh->{srate} = 0xFFFF if $fh->{srate} > 0xFFFF;
+		$fh->{bpm}   = 0xFFFF if (defined($fh->{bpm})   && $fh->{bpm}   > 0xFFFF);
+		$fh->{srate} = 0xFFFF if (defined($fh->{srate}) && $fh->{srate} > 0xFFFF);
 
 
 		#Check for duplicates
@@ -323,7 +324,7 @@ sub startup {
 		}
 		#Is it a tempfile? Remove it.
 		#This is the case for 'converter' files and 'rss'
-		unlink($file) if $per_file_info{$file}->{UNLINK} == 1;
+		unlink($file) if $per_file_info{$file}->{UNLINK};
 	}
 
  
@@ -345,7 +346,7 @@ sub add_image_to_awdb {
 		warn "! [****] Skipping $filename because there is already one prepared.\n";
 		return 0;
 	}
-	my $count = $AWDB->PrepareImage(File=>$filename, Model=>$opts{model});
+	my $count = $AWDB->PrepareImage(File=>$filename, Model=>$opts{model}, bgcolor=>$opts{bgcolor});
 	if( $count ) {; 
 		$AWDB->LoadArtworkDb or die "Failed to load artwork database\n";
 		$awdb_image_prepared = 1;
@@ -472,6 +473,7 @@ sub PODCAST_get_sane_path_from_url {
 # -> Add '<foo bar=barz oink=yak />' stuff to the hash
 # => Fillsup %podcast_infos
 sub podcastStart {
+	no warnings; #disable warnings for this scope
 	my($hr,$el,@it) = @_;
 	my $hashref_key = $hr->{Base};
 	undef($hr->{cdatabuffer});
@@ -493,6 +495,7 @@ sub podcastStart {
 #Eventer for <foo>CONTENT</foo>
 # => Fillsup %podcast_infos
 sub podcastChar {
+	no warnings; #disable warnings for this scope
 	my($hr,$el) = @_;
 	$hr->{cdatabuffer} .= $el;
 }
@@ -501,6 +504,7 @@ sub podcastChar {
 #Eventer for END
 # => Fillsup %podcast_infos
 sub podcastEnd {
+	no warnings; #disable warnings for this scope
 	my($hr,$el) = @_;
 	my $hashref_key = $hr->{Base};
 	if(defined($hr->{cdatabuffer}) &&
@@ -518,6 +522,7 @@ sub podcastEnd {
 # -> Add '<foo bar=barz oink=yak />' stuff to the hash
 # => Fillsup %podcast_channel_infos
 sub podcastChannelStart {
+	no warnings; #disable warnings for this scope
 	my($hr,$el,@it) = @_;
 	my $hashref_key = $hr->{Base};
 	$hr->{cdatabuffer} = undef;
@@ -538,6 +543,7 @@ sub podcastChannelStart {
 #Eventer for <foo>CONTENT</foo>
 # => Fillsup %podcast_channel_infos
 sub podcastChannelChar {
+	no warnings; #disable warnings for this scope
 	my($hr,$el) = @_;
 	$hr->{cdatabuffer} .= $el;
 }
@@ -546,6 +552,7 @@ sub podcastChannelChar {
 #Eventer for END
 # => Fillsup %podcast_channel_infos
 sub podcastChannelEnd {
+	no warnings; #disable warnings for this scope
 	my($hr,$el) = @_;
 	my $hashref_key = $hr->{Base};
 	if(defined($hr->{cdatabuffer}) &&
@@ -607,8 +614,8 @@ sub resolve_podcasts {
 
 			#Limit the number of podcasts to dowload.
 			my @pods   = @{$podcast_infos{$pcrss->{file}}};
-			my $flimit = int($opts{'podcast-files-limit'});
-			if ($flimit > 0) {
+			my $flimit = defined(($opts{'podcast-files-limit'})) ? int($opts{'podcast-files-limit'}) : 0;
+			if (($flimit > 0) && ($flimit < $#pods+1)) {
 				splice(@pods, $flimit);
 			} elsif ($flimit < 0) {
 				splice(@pods, 0, $flimit);
@@ -783,4 +790,471 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 EOF
 }
+
+=head1 NAME
+
+gnupod_addsong.pl  - Adds files to the iPod
+
+=head1 SYNOPSIS
+
+	gnupod_addsong.pl [OPTION]... File1 File2 ...
+
+=head1 DESCRIPTION
+
+C<gnupod_addsong.pl> copies songs onto the iPod and updates the GNUtunesDB.xml
+database.  For these changes to be visible to the iPod, C<mktunes> must be run.
+
+=head1 OPTIONS
+
+=head2 Generic Program Information
+
+=over 4
+
+=item -h, --help
+
+Lists out all the options.
+
+=item --version
+
+Output version information and exit.
+
+=item -m, --mount=directory
+
+iPod mount point, default is C<$IPOD_MOUNTPOINT>.
+
+=back
+
+=head2 Disaster recovery
+
+=over 4
+
+=item -r, --restore
+
+Restore the iPod (create a new GNUtunesDB from scratch).  This will
+rediscover all the songs on the iPod, but will lose playlists and
+data not stored in the mp3 header information.
+
+=back
+
+=head2 Duplicate management
+
+=over 4
+
+=item -d, --duplicate
+
+It isn't possible to add the same MP3 multiple times, gnupod_addsong.pl detects
+duplicates (Duplicate = same filesize/time and ID3Tag name). You can disable
+the duplicate-detection with the '--duplicate' switch.
+
+=back
+
+=head2 Playlists
+
+=over 4
+
+=item -p, --playlist=string
+
+Add songs to this playlist, can be used multiple times.  Playlists can also be
+added manually, as covered later.
+
+=back
+
+=head2 Podcasts
+
+See also the later section on podcasts.
+
+=over 4
+
+=item --playlist-is-podcast
+
+Set podcast flag for playlist(s) created using '--playlist'.
+
+=item --podcast-artwork
+
+Download and install artwork for podcasts from their channel.
+
+=item --podcast-cache-dir=string
+
+Set a directory in which podcast media files will be cached.
+
+=item --podcast-files-limit=int
+
+Limit the number of files that are downloaded.
+0 = download all (default), -X = download X oldest items, X = download X newest items
+
+=back
+
+=head2 Decoding
+
+MP3/WAV (RIFF) and M4A (Apple AAC) files can be added directly.  FLAC and
+OGG files can be decoded and also added.  C<gnupod_addsong.pl> attempts to
+'auto-detect' the encoding.
+
+(Note: To use all features of --decode, you will have to install
+Audio::FLAC::Header, Ogg::Vorbis::Header::PurePerl, lame, flac, oggenc and
+faac)
+
+=over 4
+
+=item -x, --decode=pcm|mp3|aac|aacbm
+
+Convert FLAC Files to WAVE/MP3 or AAC 'on-the-fly'. Use '-e' to specify a
+quality/bitrate.
+
+=item -x, --decode=video
+
+Convert .avi Files into iPod video 'on-the-fly' (needs ffmpeg with AAC
+support).
+
+=item -x, --decode=alac
+
+Convert FLAC Files into Apple Lossless 'on-the-fly' (needs ffmpeg with ALAC
+support).
+
+=item -e, --reencode=int
+
+Re-encode MP3/AAC files with new quality 'on-the-fly' (0 = Good .. 9 = Bad)
+You may be able to save some space if you do not need crystal-clear sound.
+
+=back
+
+=head2 Setting title/album information
+
+By default, GNUpod uses the ID3 tags included in the mp3 header
+information.  If this information is incorrect, incomplete or just not what
+you want, use these options.  You can also change track information later with
+L<gnupod_search.pl>.
+
+=over 4
+
+=item --disable-v1
+
+Do not read ID3v1 Tags (MP3 Only).
+
+=item --disable-v2
+
+Do not read ID3v2 Tags (MP3 Only).
+
+=item --disable-ape-tag
+
+Do not read APE Tags (MP3 Only) --disable-v1 with --disable-v2 implies --disable-ape-tag
+
+=item --replaygain-album
+
+Use the ReplayGain album value instead of the ReplayGain track value
+(default).
+
+=item -t, --set-title=string
+
+Set Title  (Override ID3 Tag).
+
+=item -a, --set-artist=string
+
+Set Artist (Override ID3 Tag).
+
+=item -l, --set-album=string
+
+Set Album  (Override ID3 Tag).
+
+=item -g, --set-genre=string
+
+Set Genre  (Override ID3 Tag).
+
+=item --set-rating=int
+
+Set Rating.  (20 = 1 star, 40 = 2 stars, ... 100 = 5 stars).
+
+=item --set-playcount=int
+
+Set Playcount (how many times the song has been played).
+
+=item --set-songnum
+
+Override 'Songnum/Tracknum' field.
+
+=item -b, --set-bookmarkable
+
+Set this song as bookmarkable.  This is usually most valuable for media
+such as podcasts and e-books where you may wish to stop the media part-way
+through and come back to the same place.
+
+=item --set-shuffleskip
+
+Exclude this file when in shuffle mode. Most useful for media such as
+podcasts and e-books.
+
+=item --set-compilation
+
+Mark songs as being part of a compilation.
+
+=item --min-vol-adj=int
+
+Minimum volume adjustment allowed by ID3 RVA/RVAD tag.
+
+=item --max-vol-adj=int
+
+Maximum volume adjustment allowed by ID3 RVA/RVAD tag. The volume can be
+adjusted manually in iTunes in the range -100% to +100%. The default for
+these two options is 0, which effectively ignores the RVA/RVAD tag.
+
+=item --artwork=FILE
+
+Use FILE as album cover.
+
+=back
+
+=head1 PLAYLISTS
+
+You can use the C<--playlist> option when adding songs to add a song into
+the nominated playlist. 
+
+	# Add songs into playlists
+	gnupod_addsong.pl -m /mnt/ipod --playlist=Party --playlist=Driving /tmp/*.mp3
+
+Playlists can be manually created after the songs have been added.  To do
+this, you'll need to mount your iPod and open the file (relative to your
+mount point) F<iPod_Control/.gnupod/GNUtunesDB.xml> in a text editor.  It
+is recommended that you first save a copy of your working file just in case
+something goes wrong.
+
+B<IMPORTANT:> In order for your changes to take effect, you must remember to
+run C<mktunes.pl> after changing the C<GNUtunesDB.xml> file, before
+unmounting.
+
+To create a playlist named 'sweet' which holds the songs with the ID
+1 and 2, create something like this:
+
+	<playlist name="sweet">
+		<add id="1" />
+		<add id="2" />
+	</playlist>
+
+=head2 Extended playlists
+
+To make playlist easier, it's possible to add entire albums, and to add
+songs based on different criteria than just song id.  For example:
+
+	<playlist name="bogus">
+		<add album="seiken densetsu" bitrate="256" />
+	</playlist>
+
+This would add every song from the album 'Seiken Densetsu' (C<add>
+is case INsensitive) which has a bitrate of 256kbit/s.
+
+
+=head2 Regular Expression playlists
+
+Since GNUpod 0.26 it's also possible to use regular expressions.
+
+	<playlist name="Regex Demo">
+		<regex album="^A" />
+		<iregex album="^b" />
+	</playlist>
+
+This will add all songs from all albums that start with "A" and all songs
+from all albums which start with "B" or "b".  C<regex> is case sensitive,
+C<iregex> is case insensitive.
+
+It's also possible to sort a playlist:
+
+	<playlist name="By Album" sort="album">
+		<iregex artist="bach" />
+	</playlist>
+
+This adds all songs from Bach, sorted by album (a..z). You can use
+every C< <file ..> > item (id, bitrate, title..) for C<sort>.  Add
+C<reverse>  at the beginning, to reverse the sorting:
+
+	<playlist name="By Title" sort="reverse title">
+		<regex artist="U2" />
+	</playlist>
+
+=head2 Extended and Regular Expression playlists with other programs
+
+You should avoid the use of any extended playlists if you use
+your iPod with other programs. This is because the extended playlists
+are only syntactic sugar provided by the GNUpod tools and have no
+representation in the iTunes database. Thus they are rendered-out when
+creating the iTunes database and can't be fully recreated when reading
+back an iTunes database that other tools have modified.
+
+For example if you have the following in
+your C<GNUtunesDB.xml> file:
+
+	<files>
+	<file id="1" title="hello" album="foo"..
+	<file id="2" title="boing" album="foo"..
+	</files>
+	<playlist name="extended">
+		<add album="foo" />
+	</playlist>
+
+C<tunes2pod.pl> will restore this merely as:
+
+	<files>
+	<file id="1" title="hello" album="foo"..
+	<file id="2" title="boing" album="foo"..
+	</files>
+	<playlist name="extended">
+		<add id="1" />
+		<add id="2" />
+	</playlist>
+
+The songs are still in the playlists, but the expressions you wrote
+are lost. As an alternative you may use Smart Playlists if your firmware
+supports them.
+
+=head2 Smart Playlists
+
+You can also use Smart-Playlists with Firmware >= 2.x
+
+	<smartplaylist checkrule="spl" liveupdate="1" name="Example SPL1" >
+		<spl action="eq" field="playcount" string="0" />
+		<spl action="IS" field="artist" string="Jon Doe" />
+	</smartplaylist>
+
+	<smartplaylist checkrule="spl" liveupdate="1" name="Example SPL2" >
+		<spl action="gt" field="bitrate" string="311" />
+	</smartplaylist>
+
+C<Example SPL1> matches all songs from 'Jon Doe' with playcount==0 (eg.
+All songs from Jon Doe that haven't been played yet).
+
+C<Example SPL2> matches all songs with a Bitrate > 331.  (See also
+README.smartplaylists).
+
+For more examples have a look at `doc/gnutunesdb.example' included in the
+GNUpod tar-ball.  Also check out http://blinkenlights.ch/gnupod/mkspl.html
+for a 'JavaScript SPL-Creator'
+
+=head1 PODCASTS
+
+Do not add podcast files in the same way as you add regular songs.  In
+order for your iPod to distinguish between Podcasts and songs, we need to
+make sure the media type is set correctly.  To add a single podcast do the
+following:
+
+	gnupod_addsong.pl -m /mnt/ipod -p "Podcast Title" --playlist-is-podcast podcast.mp3
+
+You can add multiple podcasts to the same title as well:
+
+	gnupod_addsong.pl -m /mnt/ipod -p "Podcast Title" --playlist-is-podcast podcasts/*
+
+Including C<playlist-is-podcast> ensures that all of the attributes are set
+correctly (shuffleskip, bookmarkable, mediatype etc).
+
+=head2 Downloading podcasts
+
+gnupod_addsong.pl can also download podcasts and create such playlists
+itself:
+
+	gnupod_addsong.pl -m /mnt/ipod -p "Heute Morgen" --playlist-is-podcast http://pod.drs.ch/heutemorgen_mpx.xml
+
+Running this command will create a Playlist called 'Heute Morgen' (-p) and
+set podcast="1" (--playlist-is-podcast). gnupod_addsong.pl will then fetch
+the podcast from http://pod.drs.ch/heutemorgen_mpx.xml, download all (new)
+files and add them to the 'Heute Morgen' playlist!
+
+=head2 Creating additional podcast playlists
+
+If you want to create additional podcast playlists manually as above, you
+need to set the podcast flag to '1':
+
+	<playlist name="Test Podcast" podcast="1">
+		<iregex artist="John Doe" />
+	</playlist>
+
+Such a playlist will show up as a Podcast after running C<mktunes.pl>.
+
+=head1 ARTWORK
+
+GNUpod can write cover artwork for video, nano and late 2007-nano
+iPods. The internal image format is model specific, so you should give
+GNUpod a hint about the image format it should use.
+
+If you own a video (compatible) iPod, set:
+
+     model = video
+
+in your GNUpod configuration file (found at F<~/.gnupodrc> or
+F<$IPOD_MOUNTPOINT/iPod_Control/.gnupod/gnupodrc>, see
+F<doc/gnupodrc.example> for more details).  For the iPod nano you should
+use:
+
+     model = nano
+
+Late 2007-nanos need this setting:
+
+     model = nano_3g
+
+Late 2008-nanos need this setting:
+
+     model = nano_4g
+
+To specify a cover while adding files you'd use the `--artwork'
+switch. Example:
+
+     gnupod_addsong.pl --artwork cover.jpg *.mp3
+
+For podcasts you can download the artwork from the rss feed. Example:
+
+     gnupod_addsong.pl -p "Heute Morgen" --podcast-artwork --playlist-is-podcast http://pod.drs.ch/heutemorgen_mpx.xml
+
+
+Use L<gnupod_search.pl> to change/add artwork for existing files.
+Don't forget to run L<mktunes.pl> afterwards.
+
+
+=head1 EXAMPLES
+
+	# Mount the iPod
+	mount /mnt/ipod
+
+	# Sync changes made by other tools (such as iTunes)
+	# only necessary if you are using other tools in addition to these
+	tunes2pod.pl -m /mnt/ipod
+
+	# Add a song 
+	gnupod_addsong.pl -m /mnt/ipod /tmp/foo.mp3
+
+	# You can also use wild cards and add more than one song at a time
+	gnupod_addsong.pl -m /mnt/ipod /mnt/mp3/seiken_densetsu2_ost/* /mnt/mp3/xenogears/ost?/*
+
+	# Convert to mp3 on the fly
+	gnupod_addsong.pl -m /mnt/ipod myfile.flac myfile.ogg --decode=mp3
+
+	# Add songs with artwork
+	gnupod_addsong.pl -m /mnt/ipod /mnt/mp3/amos/* --artwork=amos.jpg
+
+	# Add songs into playlists
+	gnupod_addsong.pl -m /mnt/ipod --playlist=Party --playlist=Driving /tmp/*.mp3
+
+	# Add a podcast (not the same as a regular song)
+	gnupod_addsong.pl -m /mnt/ipod -p "Podcast Title" --playlist-is-podcast podcast.mp3
+
+	# Add more than one podcast
+	gnupod_addsong.pl -m /mnt/ipod -p "Podcast Title" --playlist-is-podcast podcasts/*
+
+	# Fetch podcasts online and add to iPod
+	gnupod_addsong.pl -m /mnt/ipod -p "Heute Morgen" --playlist-is-podcast http://pod.drs.ch/heutemorgen_mpx.xml
+
+	# Record the changes to the iTunes database (this is essential)
+	mktunes.pl -m /mnt/ipod
+
+	# Unmount and go
+	umount /mnt/ipod
+
+###___PODINSERT man/general-tools.pod___###
+
+=head1 AUTHORS
+
+Adrian Ulrich <pab at blinkenlights dot ch> - Main author of GNUpod
+
+Heinrich Langos <henrik-gnupod at prak dot org> - Many patches. Mostly to podcast features.
+
+=head1 COPYRIGHT
+
+Copyright (C) Adrian Ulrich
+
+###___PODINSERT man/footer.pod___###
 

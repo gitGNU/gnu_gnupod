@@ -12,7 +12,7 @@ package GNUpod::Mktunes;
 		my($class,%args) = @_;
 		
 		my $self = { Connection=>$args{Connection}, Mode=>MODE_ADDFILE, Artwork=>$args{Artwork},
-		             ArrayFiles => [], CountFiles => 0, Sequence => 0,  iPodName => $args{iPodName},
+		             ArrayFiles => [], CountFiles => 0, Sequence => 0, SequenceJumped => 0, iPodName => $args{iPodName},
 		             MasterPlaylist => [], Playlists => {}, SmartPlaylists => {},
 		             FuzzyDb_Normal => {}, FuzzyDb_Lowercase => {} };
 		bless($self,$class);
@@ -34,7 +34,7 @@ package GNUpod::Mktunes;
 	#########################################################################
 	# Create and write the iTunesDB file
 	sub WriteItunesDB {
-		my($self) = @_;
+		my($self,%args) = @_;
 		
 		my $mhbd_size = 0;
 		my $mhsd_size = 0;
@@ -52,7 +52,7 @@ package GNUpod::Mktunes;
 			$mhsd_size = tell(ITUNES);
 		print ITUNES GNUpod::iTunesDB::mk_mhlt({songs=>$self->GetFileCount});
 		foreach my $item (@{$self->GetFiles}) {
-			print ITUNES $self->AssembleMhit($item);
+			print ITUNES $self->AssembleMhit(object=>$item, keep=>$args{keep});
 			print "\r> $i files assembled " if ($i++ % 96 == 0);
 		}
 			$mhsd_size = tell(ITUNES)-$mhsd_size;
@@ -240,6 +240,7 @@ package GNUpod::Mktunes;
 			
 			
 			foreach my $fqid (@{$cont}) {
+				if (! $self->{SequenceJumped} ) { my $i=1<<15; while ($i < $self->{Sequence}) { $i<<=1;};  $self->{Sequence} = $i; $self->{SequenceJumped}=1; };
 				my $current_id = $self->GetNextId;
 				my $current_mhod = GNUpod::iTunesDB::mk_mhod({fqid=>$fqid});
 				my $current_mhip = GNUpod::iTunesDB::mk_mhip({childs => 1, plid => $current_id, sid=>$fqid, size=>length($current_mhod)});
@@ -267,7 +268,9 @@ package GNUpod::Mktunes;
 	#########################################################################
 	# Builds a single mhit with mhod childs
 	sub AssembleMhit {
-		my($self, $object) = @_;
+		my($self, %args) = @_;
+		my $object      = $args{object};
+		my $keep        = $args{keep};
 		my $mhit        = ''; # Buffer for the new mhit
 		my $mhod_chunks = ''; # Buffer for the childs (mhods)
 		my $mhod_count  = 0;  # Child counter
@@ -275,6 +278,7 @@ package GNUpod::Mktunes;
 		foreach my $key (sort keys(%$object)) {
 			my $value = $object->{$key};
 			next unless $value; # Do not write empty values
+			next if (scalar keys %$keep && !$keep->{$key}); # Only keep specific mhods
 			my $new_mhod = GNUpod::iTunesDB::mk_mhod({stype=>$key, string=>($key eq "title"?$value." |>".$object->{artist}."/".$object->{album}."/".$object->{year}."/"._ms_to_string($object->{time}):$value)});
 			next unless $new_mhod; # Something went wrong
 			$mhod_chunks .= $new_mhod;

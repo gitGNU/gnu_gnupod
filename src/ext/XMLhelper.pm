@@ -122,10 +122,13 @@ sub xescaped {
 	$ret =~ s/\'/&apos;/g;
 	$ret =~ s/</&lt;/g;
 	$ret =~ s/>/&gt;/g;
+	return $ret unless ($ret =~ /[^\x20-\x7F]/); #early return if nothing outside plain ascii range
 	# newline normalization
-	$ret =~ s/\x0D\x0A/\x0A/g;
-	$ret =~ s/\x0D/\x0A/g;
-	$ret =~ s/\x0A/&#x0a;/g; 
+	$ret =~ s/\x0D\x0A/&#x0a;/g;
+	$ret =~ s/\x0D/&#x0a;/g;
+	$ret =~ s/\x0A/&#x0a;/g;
+	# BOM removal
+	$ret =~ s/\xEF\xBB\xBF//g; # real BOM got converted to a "utf8.BOM" and isn't needed anymore
 	# strip other control characters
 	$ret =~ tr/\000-\037//d;
 	#convert to XML encoded unicode
@@ -301,19 +304,23 @@ sub mkh {
 }
 
 
+#############################################################
+# Reset some stuff if we do a second run
+sub resetxml {
+	$cpn = undef; #Current PlaylistName
+	@idpub = ();
+	@plorder = ();
+	$xid = 1;
+	$XDAT = undef;
+}
+
 
 #############################################################
 # Parses the XML File and do events
 sub doxml {
 	my($xmlin, %opts) = @_;
 	return undef unless (-r $xmlin);
-	### reset some stuff if we do a second run
-	$cpn = undef; #Current PlaylistName
-	@idpub = ();
-	@plorder = ();
-	$xid = 1;
-	$XDAT = undef;
-	###
+	resetxml();
 	my $p;
 	my $ref = eval {
 		$p = new XML::Parser(ErrorContext => 0, Handlers=>{Start=>\&eventer});
