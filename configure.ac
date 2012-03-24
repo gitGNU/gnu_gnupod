@@ -29,7 +29,7 @@ fi
 
 dnl Basic modules
 ALL_MODULES="Digest::MD5 Digest::SHA1 XML::Parser Unicode::String MP3::Info File::Copy Date::Parse Date::Format Data::Dumper"
-OPT_MODULES="Audio::FLAC::Header Ogg::Vorbis::Header::PurePerl Date::Manip"
+OPT_MODULES="Audio::FLAC::Header Ogg::Vorbis::Header::PurePerl Date::Manip Text::CharWidth"
 
 dnl Ugly check for modules
 ###IFS=" " Not needed with new autoconf?!
